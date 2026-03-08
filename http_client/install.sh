@@ -18,7 +18,8 @@ SKILLS_DIR="$ROOT/agents/main/skills"
 MCPPER_JSON="$ROOT/config/mcporter.json"
 VENV_PIP="$ROOT/mcp/.venv/bin/pip3"
 VENV_PYTHON="$ROOT/mcp/.venv/bin/python3"
-MCP_SERVER_DIR="$ROOT/mcp/http_client"
+MCP_DIR="$ROOT/mcp"
+HTTP_CLIENT_SCRIPT="$MCP_DIR/http_client.py"
 
 echo "ROOT=$ROOT"
 echo "Installing HTTP Client MCP Server..."
@@ -48,28 +49,25 @@ if ! command -v jq &>/dev/null; then
   echo ""
   echo "    \"http_client\": {"
   echo "      \"transport\": \"stdio\","
-  echo "      \"command\": \"sh\","
+  echo "      \"command\": \"$VENV_PYTHON\","
   echo "      \"args\": ["
-  echo "        \"-c\","
-  echo "        \"$VENV_PYTHON $MCP_SERVER_DIR/http_client.py 2>/dev/null\""
+  echo "        \"$HTTP_CLIENT_SCRIPT\""
   echo "      ],"
-  echo "      \"cwd\": \"$MCP_SERVER_DIR\""
+  echo "      \"cwd\": \"$MCP_DIR\""
   echo "    }"
   exit 1
 fi
 
 NEW_ENTRY=$(jq -n \
   --arg venv_python "$VENV_PYTHON" \
-  --arg server_dir "$MCP_SERVER_DIR" \
+  --arg script_path "$HTTP_CLIENT_SCRIPT" \
+  --arg cwd "$MCP_DIR" \
   '{
     "http_client": {
       "transport": "stdio",
-      "command": "sh",
-      "args": [
-        "-c",
-        ($venv_python + " " + $server_dir + "/http_client.py 2>/dev/null")
-      ],
-      "cwd": $server_dir
+      "command": $venv_python,
+      "args": [$script_path],
+      "cwd": $cwd
     }
   }')
 
