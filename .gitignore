@@ -209,3 +209,5 @@ __marimo__/
 Google_Workspace_MCP_Server/token.json
 
 Google_Workspace_MCP_Server/desktop_client_secrets.json
+
+.DS_Store
