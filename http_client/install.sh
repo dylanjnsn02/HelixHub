@@ -77,7 +77,10 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "Creating $MCPPER_JSON with http_client config"
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" <(echo "$NEW_ENTRY") > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  NEW_ENTRY_TMP="${MCPPER_JSON}.new"
+  echo "$NEW_ENTRY" > "$NEW_ENTRY_TMP"
+  jq -s '.[0] * .[1]' "$MCPPER_JSON" "$NEW_ENTRY_TMP" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  rm -f "$NEW_ENTRY_TMP"
   echo "Appended http_client to $MCPPER_JSON"
 fi
 
