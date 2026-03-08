@@ -18,7 +18,8 @@ SKILLS_DIR="$ROOT/agents/main/skills"
 MCPPER_JSON="$ROOT/config/mcporter.json"
 VENV_PIP="$ROOT/mcp/.venv/bin/pip3"
 VENV_PYTHON="$ROOT/mcp/.venv/bin/python3"
-MCP_SERVER_DIR="$ROOT/mcp/remote_commands"
+MCP_SCRIPT="$ROOT/mcp/remote_commands.py"
+MCP_CWD="$ROOT/mcp"
 
 echo "ROOT=$ROOT"
 echo "Installing Remote Commands MCP Server..."
@@ -48,28 +49,25 @@ if ! command -v jq &>/dev/null; then
   echo ""
   echo "    \"remote_commands\": {"
   echo "      \"transport\": \"stdio\","
-  echo "      \"command\": \"sh\","
+  echo "      \"command\": \"$VENV_PYTHON\","
   echo "      \"args\": ["
-  echo "        \"-c\","
-  echo "        \"$VENV_PYTHON $MCP_SERVER_DIR/remote_commands.py 2>/dev/null\""
+  echo "        \"$MCP_SCRIPT\""
   echo "      ],"
-  echo "      \"cwd\": \"$MCP_SERVER_DIR\""
+  echo "      \"cwd\": \"$MCP_CWD\""
   echo "    }"
   exit 1
 fi
 
 NEW_ENTRY=$(jq -n \
   --arg venv_python "$VENV_PYTHON" \
-  --arg server_dir "$MCP_SERVER_DIR" \
+  --arg script_path "$MCP_SCRIPT" \
+  --arg cwd "$MCP_CWD" \
   '{
     "remote_commands": {
       "transport": "stdio",
-      "command": "sh",
-      "args": [
-        "-c",
-        ($venv_python + " " + $server_dir + "/remote_commands.py 2>/dev/null")
-      ],
-      "cwd": $server_dir
+      "command": $venv_python,
+      "args": [$script_path],
+      "cwd": $cwd
     }
   }')
 
@@ -77,7 +75,9 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "Creating $MCPPER_JSON with remote_commands config"
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" <(echo "$NEW_ENTRY") > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
+  jq -s '.[0] * .[1]' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  rm -f "$MCPPER_JSON.new"
   echo "Appended remote_commands to $MCPPER_JSON"
 fi
 
