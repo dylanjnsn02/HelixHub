@@ -206,6 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-token.json
+Google_Workspace_MCP_Server/token.json
 
-desktop_client_secrets.json
+Google_Workspace_MCP_Server/desktop_client_secrets.json
