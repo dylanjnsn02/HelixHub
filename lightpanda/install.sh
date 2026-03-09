@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$ROOT/agents/main/skills"
 MCPPER_JSON="$ROOT/config/mcporter.json"
 MCP_SERVER_DIR="$ROOT/mcp/lightpanda"
+MCP_CWD="$ROOT/mcp"
 LIGHTPANDA_BINARY="$MCP_SERVER_DIR/lightpanda"
 
 echo "ROOT=$ROOT"
@@ -50,20 +51,22 @@ if ! command -v jq &>/dev/null; then
   echo "    \"web_browser\": {"
   echo "      \"transport\": \"stdio\","
   echo "      \"command\": \"$LIGHTPANDA_BINARY\","
-  echo "      \"args\": [],"
-  echo "      \"cwd\": \"$MCP_SERVER_DIR\""
+  echo "      \"args\": ["
+  echo "        \"mcp\""
+  echo "      ],"
+  echo "      \"cwd\": \"$MCP_CWD\""
   echo "    }"
   exit 1
 fi
 
 NEW_ENTRY=$(jq -n \
   --arg binary "$LIGHTPANDA_BINARY" \
-  --arg cwd "$MCP_SERVER_DIR" \
+  --arg cwd "$MCP_CWD" \
   '{
     "web_browser": {
       "transport": "stdio",
       "command": $binary,
-      "args": [],
+      "args": ["mcp"],
       "cwd": $cwd
     }
   }')
@@ -72,7 +75,9 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "Creating $MCPPER_JSON with web_browser config"
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" <(echo "$NEW_ENTRY") > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
+  jq -s '.[0] * .[1]' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  rm -f "$MCPPER_JSON.new"
   echo "Appended web_browser to $MCPPER_JSON"
 fi
 
