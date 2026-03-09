@@ -19,7 +19,7 @@ MCPPER_JSON="$ROOT/config/mcporter.json"
 VENV_PIP="$ROOT/mcp/.venv/bin/pip3"
 VENV_PYTHON="$ROOT/mcp/.venv/bin/python3"
 MCP_DIR="$ROOT/mcp"
-HTTP_CLIENT_SCRIPT="$MCP_DIR/http_client.py"
+HTTP_CLIENT_SCRIPT="$MCP_DIR/http_client/http_client.py"
 
 echo "ROOT=$ROOT"
 echo "Installing HTTP Client MCP Server..."
@@ -43,8 +43,14 @@ else
 fi
 
 # 3. Append http_client config to mcporter.json
-if ! command -v jq &>/dev/null; then
-  echo "jq is required to update mcporter.json. Install with: brew install jq"
+JQ=""
+if command -v jq &>/dev/null; then
+  JQ="jq"
+elif [ -x /usr/bin/jq ]; then
+  JQ="/usr/bin/jq"
+fi
+if [ -z "$JQ" ]; then
+  echo "jq is required to update mcporter.json. Install with: brew install jq (macOS) or apt install jq (Linux)"
   echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"http_client\": {"
@@ -58,7 +64,7 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-NEW_ENTRY=$(jq -n \
+NEW_ENTRY=$("$JQ" -n \
   --arg venv_python "$VENV_PYTHON" \
   --arg script_path "$HTTP_CLIENT_SCRIPT" \
   --arg cwd "$MCP_DIR" \
@@ -79,7 +85,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
 else
   NEW_ENTRY_TMP="${MCPPER_JSON}.new"
   echo "$NEW_ENTRY" > "$NEW_ENTRY_TMP"
-  jq -s '
+  "$JQ" -s '
   (.[1].mcpServers // .[1]) as $new |
   (.[0] | to_entries | map(select(.value | type == "object" and has("transport"))) | from_entries) as $stray |
   ((.[0].mcpServers // {}) * $stray * $new) as $merged |
