@@ -79,7 +79,12 @@ if [ ! -f "$MCPPER_JSON" ]; then
 else
   NEW_ENTRY_TMP="${MCPPER_JSON}.new"
   echo "$NEW_ENTRY" > "$NEW_ENTRY_TMP"
-  jq -s '(.[0].mcpServers // {}) * .[1].mcpServers as $merged | .[0] | .mcpServers = $merged | reduce ($merged | keys)[] as $k (.; del(.[$k]))' "$MCPPER_JSON" "$NEW_ENTRY_TMP" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  jq -s '
+  (.[1].mcpServers // .[1]) as $new |
+  (.[0] | to_entries | map(select(.value | type == "object" and has("transport"))) | from_entries) as $stray |
+  ((.[0].mcpServers // {}) * $stray * $new) as $merged |
+  .[0] | .mcpServers = $merged | reduce ($merged | keys)[] as $k (.; del(.[$k]))
+' "$MCPPER_JSON" "$NEW_ENTRY_TMP" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
   rm -f "$NEW_ENTRY_TMP"
   echo "Appended http_client to $MCPPER_JSON"
 fi
