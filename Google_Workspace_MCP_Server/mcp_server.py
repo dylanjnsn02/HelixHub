@@ -311,9 +311,10 @@ def mark_email_as_read(message_id: str, ctx: Context) -> Dict[str, str]:
 # --- CALENDAR TOOLS ---
 
 @server.tool()
-def list_calendar_events(ctx: Context, start_time: str, end_time: str, query: Optional[str] = None) -> List[ListedEvent]:
+def list_calendar_events(ctx: Context, start_time: str, end_time: str, query: Optional[str] = None) -> str:
     """
     Lists calendar events within a specified time range, optionally filtering by a search query.
+    Returns a markdown string listing the events.
 
     Args:
         start_time: The start of the time range in ISO 8601 format (e.g., '2025-07-05T00:00:00Z').
@@ -327,30 +328,30 @@ def list_calendar_events(ctx: Context, start_time: str, end_time: str, query: Op
             calendarId='primary', 
             timeMin=start_time, 
             timeMax=end_time,
-            q=query, # TODO: study it
-            maxResults=20,  # Limit results to a reasonable number
+            q=query,
+            maxResults=20,
             singleEvents=True, 
             orderBy='startTime'
         ).execute()
         
         events = events_result.get('items', [])
         if not events:
-            return []
+            return "No events found for the specified period."
 
-        listed_events = []
+        md_lines = [
+            f"**Calendar Events from {start_time} to {end_time}**",
+            "",
+            "| ID | Summary | Start Time | End Time |",
+            "|----|---------|------------|----------|"
+        ]
         for event in events:
             # Handle all-day events which have 'date' instead of 'dateTime'
             start = event['start'].get('dateTime', event['start'].get('date'))
             end = event['end'].get('dateTime', event['end'].get('date'))
-            listed_events.append(
-                ListedEvent(
-                    id=event['id'],
-                    summary=event.get('summary', 'No Title'),
-                    start_time=start,
-                    end_time=end
-                )
-            )
-        return listed_events
+            summary = event.get('summary', 'No Title').replace('\n', ' ')
+            eid = event['id']
+            md_lines.append(f"| `{eid}` | {summary} | `{start}` | `{end}` |")
+        return "\n".join(md_lines)
     except HttpError as e:
         raise Exception(f"API Calendar error (HTTP {e.status_code}): {e.reason}")
 
