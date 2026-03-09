@@ -42,8 +42,14 @@ else
 fi
 
 # 3. Append google_workspace config to mcporter.json
-if ! command -v jq &>/dev/null; then
-  echo "jq is required to update mcporter.json. Install with: brew install jq"
+JQ=""
+if command -v jq &>/dev/null; then
+  JQ="jq"
+elif [ -x /usr/bin/jq ]; then
+  JQ="/usr/bin/jq"
+fi
+if [ -z "$JQ" ]; then
+  echo "jq is required to update mcporter.json. Install with: brew install jq (macOS) or apt install jq (Linux)"
   echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"google_workspace\": {"
@@ -59,7 +65,7 @@ if ! command -v jq &>/dev/null; then
 fi
 
 GOOGLE_WORKSPACE_CMD="$VENV_PYTHON $MCP_SERVER_DIR/mcp_server.py 2>/dev/null"
-NEW_ENTRY=$(jq -n \
+NEW_ENTRY=$("$JQ" -n \
   --arg cmd "$GOOGLE_WORKSPACE_CMD" \
   --arg cwd "$MCP_SERVER_DIR" \
   '{
@@ -78,7 +84,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
   echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
-  jq -s '
+  "$JQ" -s '
   (.[1].mcpServers // .[1]) as $new |
   (.[0] | to_entries | map(select(.value | type == "object" and has("transport"))) | from_entries) as $stray |
   ((.[0].mcpServers // {}) * $stray * $new) as $merged |

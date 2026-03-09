@@ -18,7 +18,7 @@ SKILLS_DIR="$ROOT/agents/main/skills"
 MCPPER_JSON="$ROOT/config/mcporter.json"
 VENV_PIP="$ROOT/mcp/.venv/bin/pip3"
 VENV_PYTHON="$ROOT/mcp/.venv/bin/python3"
-MCP_SCRIPT="$ROOT/mcp/remote_commands.py"
+MCP_SCRIPT="$ROOT/mcp/remote_commands/remote_commands.py"
 MCP_CWD="$ROOT/mcp"
 
 echo "ROOT=$ROOT"
@@ -43,8 +43,14 @@ else
 fi
 
 # 3. Append remote_commands config to mcporter.json
-if ! command -v jq &>/dev/null; then
-  echo "jq is required to update mcporter.json. Install with: brew install jq"
+JQ=""
+if command -v jq &>/dev/null; then
+  JQ="jq"
+elif [ -x /usr/bin/jq ]; then
+  JQ="/usr/bin/jq"
+fi
+if [ -z "$JQ" ]; then
+  echo "jq is required to update mcporter.json. Install with: brew install jq (macOS) or apt install jq (Linux)"
   echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"remote_commands\": {"
@@ -58,7 +64,7 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-NEW_ENTRY=$(jq -n \
+NEW_ENTRY=$("$JQ" -n \
   --arg venv_python "$VENV_PYTHON" \
   --arg script_path "$MCP_SCRIPT" \
   --arg cwd "$MCP_CWD" \
@@ -78,7 +84,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
   echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
-  jq -s '
+  "$JQ" -s '
   (.[1].mcpServers // .[1]) as $new |
   (.[0] | to_entries | map(select(.value | type == "object" and has("transport"))) | from_entries) as $stray |
   ((.[0].mcpServers // {}) * $stray * $new) as $merged |
