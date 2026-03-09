@@ -78,7 +78,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
   echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
-  jq -s '(.[0].mcpServers // {}) * .[1].mcpServers as $merged | .[0] | .mcpServers = $merged' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  jq -s '(.[0].mcpServers // {}) * .[1].mcpServers as $merged | .[0] | .mcpServers = $merged | reduce ($merged | keys)[] as $k (.; del(.[$k]))' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
   rm -f "$MCPPER_JSON.new"
   echo "Appended web_browser to $MCPPER_JSON"
 fi
