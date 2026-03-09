@@ -46,7 +46,7 @@ fi
 # 3. Append web_browser config to mcporter.json (paths under ROOT for mcporter)
 if ! command -v jq &>/dev/null; then
   echo "jq is required to update mcporter.json. Install with: brew install jq"
-  echo "Or manually add this to $MCPPER_JSON (inside the top-level object):"
+  echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"web_browser\": {"
   echo "      \"transport\": \"stdio\","
@@ -63,11 +63,13 @@ NEW_ENTRY=$(jq -n \
   --arg binary "$LIGHTPANDA_BINARY" \
   --arg cwd "$MCP_CWD" \
   '{
-    "web_browser": {
-      "transport": "stdio",
-      "command": $binary,
-      "args": ["mcp"],
-      "cwd": $cwd
+    "mcpServers": {
+      "web_browser": {
+        "transport": "stdio",
+        "command": $binary,
+        "args": ["mcp"],
+        "cwd": $cwd
+      }
     }
   }')
 
@@ -76,7 +78,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
   echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  jq -s '.[0] | .mcpServers = ((.[0].mcpServers // {}) * .[1].mcpServers)' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
   rm -f "$MCPPER_JSON.new"
   echo "Appended web_browser to $MCPPER_JSON"
 fi

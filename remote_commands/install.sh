@@ -45,7 +45,7 @@ fi
 # 3. Append remote_commands config to mcporter.json
 if ! command -v jq &>/dev/null; then
   echo "jq is required to update mcporter.json. Install with: brew install jq"
-  echo "Or manually add this to $MCPPER_JSON (inside the top-level object):"
+  echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"remote_commands\": {"
   echo "      \"transport\": \"stdio\","
@@ -63,11 +63,13 @@ NEW_ENTRY=$(jq -n \
   --arg script_path "$MCP_SCRIPT" \
   --arg cwd "$MCP_CWD" \
   '{
-    "remote_commands": {
-      "transport": "stdio",
-      "command": $venv_python,
-      "args": [$script_path],
-      "cwd": $cwd
+    "mcpServers": {
+      "remote_commands": {
+        "transport": "stdio",
+        "command": $venv_python,
+        "args": [$script_path],
+        "cwd": $cwd
+      }
     }
   }')
 
@@ -76,7 +78,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
   echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  jq -s '.[0] | .mcpServers = ((.[0].mcpServers // {}) * .[1].mcpServers)' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
   rm -f "$MCPPER_JSON.new"
   echo "Appended remote_commands to $MCPPER_JSON"
 fi

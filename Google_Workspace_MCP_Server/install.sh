@@ -44,7 +44,7 @@ fi
 # 3. Append google_workspace config to mcporter.json
 if ! command -v jq &>/dev/null; then
   echo "jq is required to update mcporter.json. Install with: brew install jq"
-  echo "Or manually add this to $MCPPER_JSON (inside the top-level object):"
+  echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"google_workspace\": {"
   echo "      \"transport\": \"stdio\","
@@ -58,18 +58,18 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+GOOGLE_WORKSPACE_CMD="$VENV_PYTHON $MCP_SERVER_DIR/mcp_server.py 2>/dev/null"
 NEW_ENTRY=$(jq -n \
-  --arg venv_python "$VENV_PYTHON" \
-  --arg server_dir "$MCP_SERVER_DIR" \
+  --arg cmd "$GOOGLE_WORKSPACE_CMD" \
+  --arg cwd "$MCP_SERVER_DIR" \
   '{
-    "google_workspace": {
-      "transport": "stdio",
-      "command": "sh",
-      "args": [
-        "-c",
-        ($venv_python + " " + $server_dir + "/mcp_server.py 2>/dev/null")
-      ],
-      "cwd": $server_dir
+    "mcpServers": {
+      "google_workspace": {
+        "transport": "stdio",
+        "command": "sh",
+        "args": ["-c", $cmd],
+        "cwd": $cwd
+      }
     }
   }')
 
@@ -77,7 +77,9 @@ if [ ! -f "$MCPPER_JSON" ]; then
   echo "Creating $MCPPER_JSON with google_workspace config"
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" <(echo "$NEW_ENTRY") > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
+  jq -s '.[0] | .mcpServers = ((.[0].mcpServers // {}) * .[1].mcpServers)' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  rm -f "$MCPPER_JSON.new"
   echo "Appended google_workspace to $MCPPER_JSON"
 fi
 

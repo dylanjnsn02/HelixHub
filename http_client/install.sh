@@ -45,7 +45,7 @@ fi
 # 3. Append http_client config to mcporter.json
 if ! command -v jq &>/dev/null; then
   echo "jq is required to update mcporter.json. Install with: brew install jq"
-  echo "Or manually add this to $MCPPER_JSON (inside the top-level object):"
+  echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
   echo "    \"http_client\": {"
   echo "      \"transport\": \"stdio\","
@@ -63,11 +63,13 @@ NEW_ENTRY=$(jq -n \
   --arg script_path "$HTTP_CLIENT_SCRIPT" \
   --arg cwd "$MCP_DIR" \
   '{
-    "http_client": {
-      "transport": "stdio",
-      "command": $venv_python,
-      "args": [$script_path],
-      "cwd": $cwd
+    "mcpServers": {
+      "http_client": {
+        "transport": "stdio",
+        "command": $venv_python,
+        "args": [$script_path],
+        "cwd": $cwd
+      }
     }
   }')
 
@@ -77,7 +79,7 @@ if [ ! -f "$MCPPER_JSON" ]; then
 else
   NEW_ENTRY_TMP="${MCPPER_JSON}.new"
   echo "$NEW_ENTRY" > "$NEW_ENTRY_TMP"
-  jq -s '.[0] * .[1]' "$MCPPER_JSON" "$NEW_ENTRY_TMP" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
+  jq -s '.[0] | .mcpServers = ((.[0].mcpServers // {}) * .[1].mcpServers)' "$MCPPER_JSON" "$NEW_ENTRY_TMP" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
   rm -f "$NEW_ENTRY_TMP"
   echo "Appended http_client to $MCPPER_JSON"
 fi
