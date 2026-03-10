@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastmcp import FastMCP
 from tinydb import Query, TinyDB
 from tinydb.table import Document
-from toon import encode
+from toon_format import encode
 
 
 mcp = FastMCP("tinydb-mcp")
