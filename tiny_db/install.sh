@@ -18,7 +18,7 @@ SKILLS_DIR="$ROOT/agents/main/skills"
 MCPPER_JSON="$ROOT/config/mcporter.json"
 VENV_PIP="$ROOT/mcp/.venv/bin/pip3"
 VENV_PYTHON="$ROOT/mcp/.venv/bin/python3"
-MCP_SCRIPT="$ROOT/tiny_db/server.py"
+MCP_SCRIPT="$ROOT/mcp/tiny_db/server.py"
 MCP_CWD="$ROOT/mcp"
 
 echo "ROOT=$ROOT"
