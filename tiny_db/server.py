@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastmcp import FastMCP
 from tinydb import Query, TinyDB
 from tinydb.table import Document
+from toon_format import encode as toon_encode
 
 
 mcp = FastMCP("tinydb-mcp")
@@ -41,6 +42,11 @@ def _to_doc_string(value: Any) -> str:
     """Serialize documents to JSON (compact, no extra whitespace)."""
     normalized = _normalize_doc(value)
     return json.dumps(normalized, separators=(",", ":"), default=str)
+
+
+def _return_toon(data: Dict[str, Any]) -> str:
+    """Encode result dict to TOON format (used for all tools except read_raw_db/get_schema)."""
+    return toon_encode(_normalize_doc(data))
 
 
 def _ensure_list(value: Any, field_name: str) -> List[Any]:
@@ -165,45 +171,45 @@ def _flatten_schema_info(
 
 
 @mcp.tool
-def ping() -> Dict[str, str]:
-    return {"status": "ok", "server": "tinydb-mcp"}
+def ping() -> str:
+    return _return_toon({"status": "ok", "server": "tinydb-mcp"})
 
 
 @mcp.tool
-def list_tables(db_path: str) -> Dict[str, Any]:
+def list_tables(db_path: str) -> str:
     db = _open_db(db_path)
     try:
-        return {"tables": sorted(list(db.tables()))}
+        return _return_toon({"tables": sorted(list(db.tables()))})
     finally:
         db.close()
 
 
 @mcp.tool
-def create_table(db_path: str, table_name: str) -> Dict[str, Any]:
+def create_table(db_path: str, table_name: str) -> str:
     db = _open_db(db_path)
     try:
         db.table(table_name)
-        return {"created_or_opened": table_name, "tables": sorted(list(db.tables()))}
+        return _return_toon({"created_or_opened": table_name, "tables": sorted(list(db.tables()))})
     finally:
         db.close()
 
 
 @mcp.tool
-def drop_table(db_path: str, table_name: str) -> Dict[str, Any]:
+def drop_table(db_path: str, table_name: str) -> str:
     db = _open_db(db_path)
     try:
         db.drop_table(table_name)
-        return {"dropped": table_name, "tables": sorted(list(db.tables()))}
+        return _return_toon({"dropped": table_name, "tables": sorted(list(db.tables()))})
     finally:
         db.close()
 
 
 @mcp.tool
-def drop_tables(db_path: str) -> Dict[str, Any]:
+def drop_tables(db_path: str) -> str:
     db = _open_db(db_path)
     try:
         db.drop_tables()
-        return {"dropped_all_tables": True, "tables": sorted(list(db.tables()))}
+        return _return_toon({"dropped_all_tables": True, "tables": sorted(list(db.tables()))})
     finally:
         db.close()
 
@@ -213,12 +219,12 @@ def insert_document(
     db_path: str,
     document: Dict[str, Any],
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         doc_id = table.insert(document)
-        return {"doc_id": doc_id}
+        return _return_toon({"doc_id": doc_id})
     finally:
         db.close()
 
@@ -228,12 +234,12 @@ def insert_documents(
     db_path: str,
     documents: List[Dict[str, Any]],
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         doc_ids = table.insert_multiple(documents)
-        return {"doc_ids": doc_ids, "count": len(doc_ids)}
+        return _return_toon({"doc_ids": doc_ids, "count": len(doc_ids)})
     finally:
         db.close()
 
@@ -242,15 +248,12 @@ def insert_documents(
 def all_documents(
     db_path: str,
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         docs = table.all()
-        return {
-            "documents_json": _to_doc_string(docs),
-            "count": len(docs),
-        }
+        return _return_toon({"documents": _normalize_doc(docs), "count": len(docs)})
     finally:
         db.close()
 
@@ -261,7 +264,7 @@ def get_document(
     table_name: Optional[str] = None,
     doc_id: Optional[int] = None,
     query: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> str:
     if doc_id is None and query is None:
         raise ValueError("Provide either doc_id or query")
 
@@ -272,10 +275,10 @@ def get_document(
             doc = table.get(doc_id=doc_id)
         else:
             doc = table.get(_build_query(query))
-        return {
-            "document_json": _to_doc_string(doc) if doc is not None else "",
+        return _return_toon({
+            "document": _normalize_doc(doc) if doc is not None else None,
             "found": doc is not None,
-        }
+        })
     finally:
         db.close()
 
@@ -285,15 +288,12 @@ def search_documents(
     db_path: str,
     query: Dict[str, Any],
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         docs = table.search(_build_query(query))
-        return {
-            "documents_json": _to_doc_string(docs),
-            "count": len(docs),
-        }
+        return _return_toon({"documents": _normalize_doc(docs), "count": len(docs)})
     finally:
         db.close()
 
@@ -304,7 +304,7 @@ def contains_document(
     table_name: Optional[str] = None,
     doc_id: Optional[int] = None,
     query: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> str:
     if doc_id is None and query is None:
         raise ValueError("Provide either doc_id or query")
 
@@ -315,7 +315,7 @@ def contains_document(
             exists = table.contains(doc_id=doc_id)
         else:
             exists = table.contains(_build_query(query))
-        return {"contains": exists}
+        return _return_toon({"contains": exists})
     finally:
         db.close()
 
@@ -325,12 +325,12 @@ def count_documents(
     db_path: str,
     query: Dict[str, Any],
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         count = table.count(_build_query(query))
-        return {"count": count}
+        return _return_toon({"count": count})
     finally:
         db.close()
 
@@ -342,7 +342,7 @@ def update_documents(
     table_name: Optional[str] = None,
     doc_ids: Optional[List[int]] = None,
     query: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> str:
     if doc_ids is None and query is None:
         raise ValueError("Provide either doc_ids or query")
 
@@ -353,7 +353,7 @@ def update_documents(
             updated = table.update(fields, doc_ids=doc_ids)
         else:
             updated = table.update(fields, _build_query(query))
-        return {"updated_doc_ids": updated, "count": len(updated)}
+        return _return_toon({"updated_doc_ids": updated, "count": len(updated)})
     finally:
         db.close()
 
@@ -364,12 +364,12 @@ def upsert_documents(
     document: Dict[str, Any],
     query: Dict[str, Any],
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         affected = table.upsert(document, _build_query(query))
-        return {"affected_doc_ids": affected, "count": len(affected)}
+        return _return_toon({"affected_doc_ids": affected, "count": len(affected)})
     finally:
         db.close()
 
@@ -380,7 +380,7 @@ def remove_documents(
     table_name: Optional[str] = None,
     doc_ids: Optional[List[int]] = None,
     query: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> str:
     if doc_ids is None and query is None:
         raise ValueError("Provide either doc_ids or query")
 
@@ -391,7 +391,7 @@ def remove_documents(
             removed = table.remove(doc_ids=doc_ids)
         else:
             removed = table.remove(_build_query(query))
-        return {"removed_doc_ids": removed, "count": len(removed)}
+        return _return_toon({"removed_doc_ids": removed, "count": len(removed)})
     finally:
         db.close()
 
@@ -400,12 +400,12 @@ def remove_documents(
 def truncate_table(
     db_path: str,
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
         table.truncate()
-        return {"truncated": table_name or "_default"}
+        return _return_toon({"truncated": table_name or "_default"})
     finally:
         db.close()
 
@@ -414,11 +414,11 @@ def truncate_table(
 def table_length(
     db_path: str,
     table_name: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> str:
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
-        return {"count": len(table)}
+        return _return_toon({"count": len(table)})
     finally:
         db.close()
 
@@ -466,10 +466,10 @@ def get_schema(
 
 
 @mcp.tool
-def close_db(db_path: str) -> Dict[str, Any]:
+def close_db(db_path: str) -> str:
     db = _open_db(db_path)
     db.close()
-    return {"closed": True, "db_path": db_path}
+    return _return_toon({"closed": True, "db_path": db_path})
 
 
 if __name__ == "__main__":
