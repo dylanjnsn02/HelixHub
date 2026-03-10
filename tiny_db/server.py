@@ -392,14 +392,16 @@ def update_documents(
 @mcp.tool
 def upsert_documents(
     db_path: str,
-    document: Dict[str, Any],
+    document: Union[Dict[str, Any], str],
     query: Dict[str, Any],
     table_name: Optional[str] = None,
 ) -> str:
+    """Upsert document(s) matching query. document can be a JSON object or a TOON string (decoded server-side)."""
+    doc = _parse_document_input(document)
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
-        affected = table.upsert(document, _build_query(query))
+        affected = table.upsert(doc, _build_query(query))
         return _return_toon({"affected_doc_ids": affected, "count": len(affected)})
     finally:
         db.close()
