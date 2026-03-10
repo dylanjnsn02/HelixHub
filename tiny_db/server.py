@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Union
 from fastmcp import FastMCP
 from tinydb import Query, TinyDB
 from tinydb.table import Document
-from toon_format import encode
 
 
 mcp = FastMCP("tinydb-mcp")
@@ -38,9 +37,10 @@ def _normalize_doc(doc: Any) -> Any:
     return doc
 
 
-def _to_toon_string(value: Any) -> str:
+def _to_doc_string(value: Any) -> str:
+    """Serialize documents to JSON (compact, no extra whitespace)."""
     normalized = _normalize_doc(value)
-    return encode(normalized)
+    return json.dumps(normalized, separators=(",", ":"), default=str)
 
 
 def _ensure_list(value: Any, field_name: str) -> List[Any]:
@@ -248,7 +248,7 @@ def all_documents(
         table = _get_table(db, table_name)
         docs = table.all()
         return {
-            "documents_toon": _to_toon_string(docs),
+            "documents_toon": _to_doc_string(docs),
             "count": len(docs),
         }
     finally:
@@ -273,7 +273,7 @@ def get_document(
         else:
             doc = table.get(_build_query(query))
         return {
-            "document_toon": _to_toon_string(doc) if doc is not None else "",
+            "document_toon": _to_doc_string(doc) if doc is not None else "",
             "found": doc is not None,
         }
     finally:
@@ -291,7 +291,7 @@ def search_documents(
         table = _get_table(db, table_name)
         docs = table.search(_build_query(query))
         return {
-            "documents_toon": _to_toon_string(docs),
+            "documents_toon": _to_doc_string(docs),
             "count": len(docs),
         }
     finally:

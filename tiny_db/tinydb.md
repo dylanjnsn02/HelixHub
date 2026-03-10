@@ -24,7 +24,7 @@ Use the **tinydb-mcp** (or **tinydb**) MCP server tools as needed. All tools tha
 - **truncate_table** — `db_path`, optional `table_name`; empties the table.
 
 ### Documents (read)
-- **all_documents** — `db_path`, optional `table_name`; returns `documents_toon` (toon-encoded), `count`.
+- **all_documents** — `db_path`, optional `table_name`; returns `documents_toon` (JSON string), `count`.
 - **get_document** — `db_path`, optional `table_name`, and either `doc_id` or `query`; returns `document_toon`, `found`.
 - **search_documents** — `db_path`, `query` (query spec), optional `table_name`; returns `documents_toon`, `count`.
 - **contains_document** — `db_path`, optional `table_name`, and either `doc_id` or `query`; returns `contains`.
@@ -68,7 +68,7 @@ Example: `{"op": "and", "conditions": [{"op": "eq", "field": "status", "value": 
 
 ## Response (high level)
 
-- Document results use **toon** encoding in `documents_toon` or `document_toon`; decode with the toon library to get lists/dicts with `doc_id` included.
+- Document results are **JSON** strings in `documents_toon` or `document_toon`; parse with `JSON.parse()` (or your language’s JSON parser) to get lists/dicts with `doc_id` included.
 - Counts and ids: `count`, `doc_id`, `doc_ids`, `updated_doc_ids`, `removed_doc_ids`, `affected_doc_ids`.
 - **get_schema**: `schema` is a dict keyed by path (e.g. `"$root"`, `"name"`, `"tags[]"`) with `types` (e.g. `{"str": 5}`) and `example`.
 
@@ -82,7 +82,7 @@ Example: `{"op": "and", "conditions": [{"op": "eq", "field": "status", "value": 
 2. For reads: use **list_tables** / **all_documents** / **get_document** / **search_documents** / **count_documents** / **table_length** / **get_schema** as needed.
 3. For writes: use **insert_document** / **insert_documents** / **update_documents** / **upsert_documents** / **remove_documents** / **truncate_table**.
 4. Build query specs for search/count/update/remove/upsert using the op table above.
-5. Decode `documents_toon` / `document_toon` with toon when you need to use document content.
+5. Parse `documents_toon` / `document_toon` as JSON when you need to use document content.
 
 ## Safety notes
 

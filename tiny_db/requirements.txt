@@ -1,3 +1,2 @@
 fastmcp
 tinydb
-toon-format
