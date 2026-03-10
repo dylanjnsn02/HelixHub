@@ -248,7 +248,7 @@ def all_documents(
         table = _get_table(db, table_name)
         docs = table.all()
         return {
-            "documents_toon": _to_doc_string(docs),
+            "documents_json": _to_doc_string(docs),
             "count": len(docs),
         }
     finally:
@@ -273,7 +273,7 @@ def get_document(
         else:
             doc = table.get(_build_query(query))
         return {
-            "document_toon": _to_doc_string(doc) if doc is not None else "",
+            "document_json": _to_doc_string(doc) if doc is not None else "",
             "found": doc is not None,
         }
     finally:
@@ -291,7 +291,7 @@ def search_documents(
         table = _get_table(db, table_name)
         docs = table.search(_build_query(query))
         return {
-            "documents_toon": _to_doc_string(docs),
+            "documents_json": _to_doc_string(docs),
             "count": len(docs),
         }
     finally:
