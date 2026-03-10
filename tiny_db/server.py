@@ -217,7 +217,7 @@ def drop_tables(db_path: str) -> str:
 @mcp.tool
 def insert_document(
     db_path: str,
-    document: Dict[str, Any],
+    document: Dict[str, JsonValue],
     table_name: Optional[str] = None,
 ) -> str:
     db = _open_db(db_path)
