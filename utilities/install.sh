@@ -24,7 +24,7 @@ MCP_CWD="$ROOT/mcp"
 echo "ROOT=$ROOT"
 echo "Installing Utilities MCP Server..."
 
-# 1. Move utilities.md to agents/main/skills (if present)
+# 1. Move utilities.md to agents/main/skills
 mkdir -p "$SKILLS_DIR"
 if [ -f "$SCRIPT_DIR/utilities.md" ]; then
   mv "$SCRIPT_DIR/utilities.md" "$SKILLS_DIR/"
