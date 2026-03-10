@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastmcp import FastMCP
 from tinydb import Query, TinyDB
 from tinydb.table import Document
-from toon_format import encode as toon_encode
+from toon_format import decode as toon_decode, encode as toon_encode
 
 
 mcp = FastMCP("tinydb-mcp")
@@ -47,6 +47,33 @@ def _to_doc_string(value: Any) -> str:
 def _return_toon(data: Dict[str, Any]) -> str:
     """Encode result dict to TOON format (used for all tools except read_raw_db/get_schema)."""
     return toon_encode(_normalize_doc(data))
+
+
+def _parse_document_input(value: Union[Dict[str, Any], str]) -> Dict[str, Any]:
+    """Accept document as a JSON object or a TOON string; return a dict for insertion."""
+    if isinstance(value, str):
+        decoded = toon_decode(value)
+        if not isinstance(decoded, dict):
+            raise ValueError("TOON document must decode to a single object (dict), not list or primitive")
+        return decoded
+    if not isinstance(value, dict):
+        raise ValueError("document must be a dict or a TOON string encoding one object")
+    return value
+
+
+def _parse_documents_input(value: Union[List[Dict[str, Any]], str]) -> List[Dict[str, Any]]:  # noqa: E501
+    """Accept documents as a JSON array or a TOON string; return a list of dicts for insertion."""
+    if isinstance(value, str):
+        decoded = toon_decode(value)
+        if not isinstance(decoded, list):
+            raise ValueError("TOON documents must decode to a list of objects")
+        for i, item in enumerate(decoded):
+            if not isinstance(item, dict):
+                raise ValueError(f"documents[{i}] must be an object, got {type(item).__name__}")
+        return decoded
+    if not isinstance(value, list):
+        raise ValueError("documents must be a list of dicts or a TOON string encoding a list")
+    return value
 
 
 def _ensure_list(value: Any, field_name: str) -> List[Any]:
@@ -217,13 +244,15 @@ def drop_tables(db_path: str) -> str:
 @mcp.tool
 def insert_document(
     db_path: str,
-    document: dict,
+    document: Union[Dict[str, Any], str],
     table_name: Optional[str] = None,
 ) -> str:
+    """Insert one document. document can be a JSON object or a TOON string (decoded to an object server-side)."""
+    doc = _parse_document_input(document)
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
-        doc_id = table.insert(document)
+        doc_id = table.insert(doc)
         return _return_toon({"doc_id": doc_id})
     finally:
         db.close()
@@ -232,13 +261,15 @@ def insert_document(
 @mcp.tool
 def insert_documents(
     db_path: str,
-    documents: List[Dict[str, Any]],
+    documents: Union[List[Dict[str, Any]], str],
     table_name: Optional[str] = None,
 ) -> str:
+    """Insert multiple documents. documents can be a JSON array or a TOON string (decoded to a list server-side)."""
+    docs = _parse_documents_input(documents)
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
-        doc_ids = table.insert_multiple(documents)
+        doc_ids = table.insert_multiple(docs)
         return _return_toon({"doc_ids": doc_ids, "count": len(doc_ids)})
     finally:
         db.close()

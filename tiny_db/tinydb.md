@@ -20,6 +20,12 @@ Use the **tinydb-mcp** (or **tinydb**) MCP server tools as needed. All tools tha
 - **TOON format**: All tools except **read_raw_db** and **get_schema** return a single **TOON**-formatted string. Decode with `toon_format.decode()` (Python) or your language’s TOON decoder to get the same structure (e.g. `documents`, `count`, `document`, `found`). See [TOON API](https://github.com/toon-format/toon-python/blob/main/docs/api.md).
 - **read_raw_db** and **get_schema** return normal JSON/dicts (raw data and schema) unchanged.
 
+### Input format for inserts (TOON or JSON)
+- **insert_document** and **insert_documents** accept **either JSON or TOON** for the document payload:
+  - **document** (single): pass a JSON object **or** a TOON string that encodes a single object. The server decodes TOON to a JSON object before inserting.
+  - **documents** (multiple): pass a JSON array **or** a TOON string that encodes a list of objects. The server decodes TOON to a list of JSON objects before inserting.
+- Prefer **TOON** when the LLM finds it easier to produce (e.g. fewer escaping issues, more compact). Example TOON for one document: `text: create things telegram bot\ncreated_at: "2026-03-10T00:00:00Z"`. The server converts TOON to JSON internally; stored data is the same either way.
+
 ### Tables
 - **list_tables** — `db_path`; returns TOON with `tables` (sorted list of table names).
 - **create_table** — `db_path`, `table_name`; creates/opens table; returns TOON with `created_or_opened`, `tables`.
@@ -36,8 +42,8 @@ Use the **tinydb-mcp** (or **tinydb**) MCP server tools as needed. All tools tha
 - **table_length** — `db_path`, optional `table_name`; returns TOON with `count`.
 
 ### Documents (write)
-- **insert_document** — `db_path`, `document` (object), optional `table_name`; returns TOON with `doc_id`.
-- **insert_documents** — `db_path`, `documents` (array), optional `table_name`; returns TOON with `doc_ids`, `count`.
+- **insert_document** — `db_path`, `document` (JSON object **or** TOON string for one object), optional `table_name`; server converts TOON to JSON; returns TOON with `doc_id`.
+- **insert_documents** — `db_path`, `documents` (JSON array **or** TOON string for a list of objects), optional `table_name`; server converts TOON to JSON; returns TOON with `doc_ids`, `count`.
 - **update_documents** — `db_path`, `fields` (object), optional `table_name`, and either `doc_ids` or `query`; returns TOON with `updated_doc_ids`, `count`.
 - **upsert_documents** — `db_path`, `document`, `query`, optional `table_name`; returns TOON with `affected_doc_ids`, `count`.
 - **remove_documents** — `db_path`, optional `table_name`, and either `doc_ids` or `query`; returns TOON with `removed_doc_ids`, `count`.
@@ -85,8 +91,9 @@ Example: `{"op": "and", "conditions": [{"op": "eq", "field": "status", "value": 
 1. Identify the DB file path and table (if not default).
 2. For reads: use **list_tables** / **all_documents** / **get_document** / **search_documents** / **count_documents** / **table_length** / **get_schema** as needed.
 3. For writes: use **insert_document** / **insert_documents** / **update_documents** / **upsert_documents** / **remove_documents** / **truncate_table**.
-4. Build query specs for search/count/update/remove/upsert using the op table above.
-5. Decode TOON responses with `toon_format.decode()` when you need to use document content or other fields; use **read_raw_db** / **get_schema** results as plain JSON.
+4. For **insert_document** / **insert_documents**: pass `document` or `documents` as **TOON** when convenient (e.g. `text: my task\ncreated_at: "2026-03-10T00:00:00Z"` for one doc). The server decodes TOON to JSON before storing. You can also pass normal JSON.
+5. Build query specs for search/count/update/remove/upsert using the op table above.
+6. Decode TOON responses with `toon_format.decode()` when you need to use document content or other fields; use **read_raw_db** / **get_schema** results as plain JSON.
 
 ## Safety notes
 
