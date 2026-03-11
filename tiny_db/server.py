@@ -369,14 +369,16 @@ def count_documents(
 @mcp.tool
 def update_documents(
     db_path: str,
-    fields: Dict[str, Any],
+    document: Union[Dict[str, Any], str],
     table_name: Optional[str] = None,
     doc_ids: Optional[List[int]] = None,
     query: Optional[Dict[str, Any]] = None,
 ) -> str:
+    """Update matching documents with the given fields. document can be a JSON object or a TOON string (decoded to an object server-side)."""
     if doc_ids is None and query is None:
         raise ValueError("Provide either doc_ids or query")
 
+    fields = _parse_document_input(document)
     db = _open_db(db_path)
     try:
         table = _get_table(db, table_name)
