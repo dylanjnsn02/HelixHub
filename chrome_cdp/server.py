@@ -8,6 +8,7 @@ Tools:
   - navigate: go to a URL
   - evaluate: run JavaScript in the page
   - get_page_content: get page text or HTML
+  - get_page_content_markdown: get page as markdown (token-efficient)
   - click: click a DOM element by CSS selector
   - type_text: type into an input element by CSS selector
   - query_elements: find elements matching a CSS selector
@@ -216,6 +217,82 @@ async def get_page_content(
         expr = "document.documentElement.outerHTML"
     else:
         expr = "document.body.innerText"
+    return await evaluate(expr, host, port, tab_index)
+
+
+def _markdown_js(max_chars: int) -> str:
+    """JavaScript that converts the page body to markdown (runs in page context)."""
+    cap = max_chars if max_chars > 0 else "Infinity"
+    return f"""
+(() => {{
+  const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','IFRAME','SVG']);
+  const out = [];
+  let len = 0;
+  const cap = {cap};
+  const add = (s) => {{
+    if (s == null) return;
+    const t = String(s).trim();
+    if (!t) return;
+    if (cap !== Infinity && (len + t.length) > cap) {{
+      out.push(t.slice(0, cap - len) + '\\n...[truncated]');
+      return true;
+    }}
+    out.push(t);
+    len += t.length;
+    return cap !== Infinity && len >= cap;
+  }};
+  const process = (el, inList = false) => {{
+    if (cap !== Infinity && len >= cap) return true;
+    if (!el || SKIP.has(el.tagName)) return false;
+    if (el.nodeType === 3) {{
+      const t = el.textContent.trim();
+      return t ? add(t) : false;
+    }}
+    if (el.nodeType !== 1) return false;
+    const tag = el.tagName;
+    const level = {{H1:1,H2:2,H3:3,H4:4,H5:5,H6:6}}[tag];
+    if (level) return add('#'.repeat(level) + ' ' + el.innerText.trim());
+    if (tag === 'A' && el.href) return add('[' + (el.innerText||el.href).trim() + '](' + el.href + ')');
+    if (tag === 'LI') return add('- ' + el.innerText.trim().replace(/\\n/g, ' '));
+    if (tag === 'UL' || tag === 'OL') {{
+      for (const c of el.children) process(c, true);
+      return cap !== Infinity && len >= cap;
+    }}
+    if (['P','DIV','BR','SECTION','ARTICLE','MAIN','HEADER','FOOTER','NAV','ASIDE'].includes(tag)) {{
+      if (!inList && out.length) out.push('');
+      for (const n of el.childNodes) if (process(n, inList)) return true;
+      if (!inList) out.push('');
+      return cap !== Infinity && len >= cap;
+    }}
+    for (const n of el.childNodes) if (process(n, inList)) return true;
+    return false;
+  }};
+  const body = document.body;
+  if (body) process(body);
+  return out.join('\\n').replace(/\\n{{3,}}/g, '\\n\\n').trim();
+}})()
+"""
+
+
+@mcp.tool()
+async def get_page_content_markdown(
+    host: str = "localhost",
+    port: int = 9222,
+    tab_index: int = 0,
+    max_chars: int = 0,
+) -> str:
+    """Get the current page content as markdown to reduce token usage.
+
+    Converts headings, links, and lists to markdown. Skips script/style/iframe.
+    More compact than HTML and often clearer than plain text for structure.
+
+    Args:
+        host: Chrome DevTools host (default: localhost).
+        port: Chrome DevTools port (default: 9222).
+        tab_index: Index of the tab (default: 0).
+        max_chars: Optional max characters (default 0 = no limit). Use e.g. 8000 to cap tokens.
+    """
+    expr = _markdown_js(max_chars)
     return await evaluate(expr, host, port, tab_index)
 
 
