@@ -7,7 +7,7 @@ Connection settings (host, port, protocol) can be stored in connection.json.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 import httpx
 from fastmcp import FastMCP
@@ -673,3 +673,7 @@ async def delete_periodic_note_by_date(
     async with _client() as client:
         resp = await client.delete(f"/periodic/{period}/{year}/{month}/{day}/")
         return _format_response(resp)
+
+
+if __name__ == "__main__":
+    mcp.run()
