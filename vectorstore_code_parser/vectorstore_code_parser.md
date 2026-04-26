@@ -1,6 +1,6 @@
 # Vectorstore Code Parser
 
-Use this when the user needs semantic code retrieval from an OpenAI Vector Store that contains indexed code chunks and metadata.
+Use this when the user needs semantic code retrieval from a local embeddings JSON file that contains indexed code chunks and metadata.
 
 ## When to use
 
@@ -9,28 +9,28 @@ Use when the user asks to:
 - Retrieve function-level code and description chunks
 - Filter results by chunk type (`raw_code`, `description`, or both)
 - Narrow by language or specific file path/function name
-- Explore unfamiliar codebases already embedded in a Vector Store
+- Query across multiple codebases by changing the per-call `embeddings_path`
 
 ## Common MCP tool usage
 
-Use the `vectorstore-code-parser` MCP server tools.
+Use the `code-search` MCP server tools.
 
 ### `search_code`
-- Required: `vector_store_id`, `query`
-- Optional: `chunk_type` (`both` default), `language`, `limit` (default 5, capped)
-- Behavior: semantic search against Vector Store and returns normalized results sorted by score.
+- Required: `embeddings_path`, `query`
+- Optional: `chunk_type` (`both` default), `language`, `limit` (default 5)
+- Behavior: embeds the query with `text-embedding-3-small`, runs local cosine similarity search, then post-filters by `chunk_type`, `language`, and `MIN_SCORE`.
 
 ### `get_function`
-- Required: `vector_store_id`, `function_name`
+- Required: `embeddings_path`, `function_name`
 - Optional: `file_path`
-- Behavior: fetches best `raw_code`/`description` chunks for one function name.
+- Behavior: direct metadata lookup in loaded records (no embedding API call), returns matching `raw_code`/`description` chunks.
 
 ## Response shape (high level)
 
 All tool calls return JSON dictionaries:
 - `status`: `ok`, `no_results`, or `error`
 - `results`: list of result objects when applicable
-- On errors: `error.type`, `error.message`, and optional `error.details`
+- On errors: `error.type` and `error.message`
 
 Result rows typically include:
 - `function_name`
@@ -50,14 +50,16 @@ Result rows typically include:
 
 ## Example approach
 
-1. Confirm or request the `vector_store_id`.
+1. Confirm or request the `embeddings_path`.
 2. Use `search_code` with a focused natural-language query.
-3. Apply filters (`chunk_type`, `language`) to reduce noise.
+3. Apply filters (`chunk_type`, `language`) and tune with `MIN_SCORE` if needed.
 4. If a specific symbol is needed, call `get_function`.
 5. Summarize top matches with file path, function name, and confidence.
 
 ## Safety notes
 
 - `OPENAI_API_KEY` must be configured for the MCP server process.
-- Validate required fields before calls (`vector_store_id`, `query`/`function_name`).
+- Ensure `embeddings_path` exists and points to a valid embeddings JSON array.
+- Validate required fields before calls (`embeddings_path`, `query`/`function_name`).
+- Embedding vectors are stripped from tool outputs before returning results.
 - Treat semantic matches as candidates and verify with surrounding code context.
