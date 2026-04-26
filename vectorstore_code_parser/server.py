@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
@@ -108,7 +107,6 @@ def _matches_filters(
     language: Optional[str] = None,
     function_name: Optional[str] = None,
     file_path: Optional[str] = None,
-    partial_file_path: bool = False,
 ) -> bool:
     if chunk_type != "both" and row.get("chunk_type") != chunk_type:
         return False
@@ -121,10 +119,7 @@ def _matches_filters(
 
     if file_path:
         actual = row.get("file_path", "")
-        if partial_file_path:
-            if file_path.lower() not in actual.lower():
-                return False
-        elif actual != file_path:
+        if actual != file_path:
             return False
 
     return True
@@ -231,7 +226,6 @@ async def get_function(
             chunk_type="both",
             function_name=function_name,
             file_path=file_path,
-            partial_file_path=False,
         )
     ]
     matched.sort(key=lambda row: (row.get("chunk_type") != "raw_code", -row.get("score", 0.0)))
@@ -249,100 +243,6 @@ async def get_function(
 
     results = list(by_chunk_type.values())
     results.sort(key=lambda row: row.get("chunk_type", ""))
-    return {"status": "ok", "results": results}
-
-
-@mcp.tool
-async def search_by_file(
-    vector_store_id: str,
-    file_path: str,
-    chunk_type: ChunkType = "both",
-) -> Dict[str, Any]:
-    """Return indexed chunks for a file path (exact or partial match)."""
-    missing = _validate_required(vector_store_id, "vector_store_id") or _validate_required(file_path, "file_path")
-    if missing:
-        return missing
-
-    if chunk_type not in _VALID_CHUNK_TYPES:
-        return _error(
-            "validation_error",
-            "Invalid chunk_type. Must be one of: raw_code, description, both",
-            {"field": "chunk_type", "allowed": sorted(_VALID_CHUNK_TYPES)},
-        )
-
-    search_result = await _vector_store_search(vector_store_id, file_path, _max_results_cap())
-    if search_result.get("status") == "error":
-        return search_result
-
-    matched = [
-        row
-        for row in search_result["results"]
-        if _matches_filters(
-            row,
-            chunk_type=chunk_type,
-            file_path=file_path,
-            partial_file_path=True,
-        )
-    ]
-    matched.sort(key=lambda row: _line_start(row.get("lines", "")))
-
-    if not matched:
-        return _no_results()
-    return {"status": "ok", "results": matched}
-
-
-def _line_start(lines: str) -> int:
-    if not lines:
-        return 10**9
-    left = str(lines).split("-", 1)[0]
-    try:
-        return int(left)
-    except ValueError:
-        return 10**9
-
-
-@mcp.tool
-async def list_files(
-    vector_store_id: str,
-    language: Optional[str] = None,
-) -> Dict[str, Any]:
-    """List indexed files with per-file function counts."""
-    missing = _validate_required(vector_store_id, "vector_store_id")
-    if missing:
-        return missing
-
-    # Best-effort metadata aggregation via broad vector search query.
-    search_result = await _vector_store_search(vector_store_id, "*", _max_results_cap())
-    if search_result.get("status") == "error":
-        return search_result
-
-    grouped: Dict[str, Dict[str, Any]] = defaultdict(
-        lambda: {"file_path": "", "language": "", "function_names": set()}
-    )
-    for row in search_result["results"]:
-        if language and row.get("language", "").lower() != language.lower():
-            continue
-        file_path = row.get("file_path")
-        if not file_path:
-            continue
-        grouped[file_path]["file_path"] = file_path
-        grouped[file_path]["language"] = row.get("language", "")
-        function_name = row.get("function_name")
-        if function_name:
-            grouped[file_path]["function_names"].add(function_name)
-
-    results = [
-        {
-            "file_path": item["file_path"],
-            "language": item["language"],
-            "function_count": len(item["function_names"]),
-        }
-        for item in grouped.values()
-    ]
-    results.sort(key=lambda item: item["file_path"])
-
-    if not results:
-        return _no_results()
     return {"status": "ok", "results": results}
 
 
