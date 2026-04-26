@@ -24,13 +24,16 @@ MCP_CWD="$ROOT/mcp"
 echo "ROOT=$ROOT"
 echo "Installing Vectorstore Code Parser MCP Server..."
 
-# 1. Move vectorstore_code_parser.md to agents/main/skills
+# 1. Move skill file to agents/main/skills
 mkdir -p "$SKILLS_DIR"
 if [ -f "$SCRIPT_DIR/vectorstore_code_parser.md" ]; then
   mv "$SCRIPT_DIR/vectorstore_code_parser.md" "$SKILLS_DIR/"
   echo "Moved vectorstore_code_parser.md to $SKILLS_DIR"
+elif [ -f "$SCRIPT_DIR/SKILL.md" ]; then
+  mv "$SCRIPT_DIR/SKILL.md" "$SKILLS_DIR/vectorstore_code_parser.md"
+  echo "Moved SKILL.md to $SKILLS_DIR/vectorstore_code_parser.md"
 else
-  echo "Warning: $SCRIPT_DIR/vectorstore_code_parser.md not found (may already be installed)"
+  echo "Warning: skill file not found (expected $SCRIPT_DIR/vectorstore_code_parser.md or $SCRIPT_DIR/SKILL.md)"
 fi
 
 # 2. Install Python dependencies into Neural_Helix MCP venv
