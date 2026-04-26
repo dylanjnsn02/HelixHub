@@ -4,7 +4,7 @@ set -e
 # Usage: install.sh <neural_helix_root>
 # Example: ./install.sh /Users/dylanjensen/Desktop/Neural_Helix
 # Called from the root project folder (Neural_Helix), e.g.:
-#   ./mcp/vectorstore_code_parser/install.sh /Users/dylanjensen/Desktop/Neural_Helix
+#   ./mcp/code_search/install.sh /Users/dylanjensen/Desktop/Neural_Helix
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <neural_helix_root>"
@@ -18,22 +18,19 @@ SKILLS_DIR="$ROOT/agents/main/skills"
 MCPPER_JSON="$ROOT/config/mcporter.json"
 VENV_PIP="$ROOT/mcp/.venv/bin/pip3"
 VENV_PYTHON="$ROOT/mcp/.venv/bin/python3"
-MCP_SCRIPT="$ROOT/mcp/vectorstore_code_parser/server.py"
+MCP_SCRIPT="$ROOT/mcp/code_search/server.py"
 MCP_CWD="$ROOT/mcp"
 
 echo "ROOT=$ROOT"
-echo "Installing Vectorstore Code Parser MCP Server..."
+echo "Installing Code Search MCP Server..."
 
-# 1. Move skill file to agents/main/skills
+# 1. Move code_search.md to agents/main/skills
 mkdir -p "$SKILLS_DIR"
-if [ -f "$SCRIPT_DIR/vectorstore_code_parser.md" ]; then
-  mv "$SCRIPT_DIR/vectorstore_code_parser.md" "$SKILLS_DIR/"
-  echo "Moved vectorstore_code_parser.md to $SKILLS_DIR"
-elif [ -f "$SCRIPT_DIR/SKILL.md" ]; then
-  mv "$SCRIPT_DIR/SKILL.md" "$SKILLS_DIR/vectorstore_code_parser.md"
-  echo "Moved SKILL.md to $SKILLS_DIR/vectorstore_code_parser.md"
+if [ -f "$SCRIPT_DIR/code_search.md" ]; then
+  mv "$SCRIPT_DIR/code_search.md" "$SKILLS_DIR/"
+  echo "Moved code_search.md to $SKILLS_DIR"
 else
-  echo "Warning: skill file not found (expected $SCRIPT_DIR/vectorstore_code_parser.md or $SCRIPT_DIR/SKILL.md)"
+  echo "Warning: $SCRIPT_DIR/code_search.md not found (may already be installed)"
 fi
 
 # 2. Install Python dependencies into Neural_Helix MCP venv
@@ -45,7 +42,7 @@ else
   exit 1
 fi
 
-# 3. Append vectorstore_code_parser config to mcporter.json
+# 3. Append code_search config to mcporter.json
 JQ=""
 if command -v jq &>/dev/null; then
   JQ="jq"
@@ -56,7 +53,7 @@ if [ -z "$JQ" ]; then
   echo "jq is required to update mcporter.json. Install with: brew install jq (macOS) or apt install jq (Linux)"
   echo "Or manually add this to $MCPPER_JSON (inside mcpServers):"
   echo ""
-  echo "    \"vectorstore_code_parser\": {"
+  echo "    \"code_search\": {"
   echo "      \"transport\": \"stdio\","
   echo "      \"command\": \"$VENV_PYTHON\","
   echo "      \"args\": ["
@@ -73,7 +70,7 @@ NEW_ENTRY=$("$JQ" -n \
   --arg cwd "$MCP_CWD" \
   '{
     "mcpServers": {
-      "vectorstore_code_parser": {
+      "code_search": {
         "transport": "stdio",
         "command": $venv_python,
         "args": [$script_path],
@@ -83,7 +80,7 @@ NEW_ENTRY=$("$JQ" -n \
   }')
 
 if [ ! -f "$MCPPER_JSON" ]; then
-  echo "Creating $MCPPER_JSON with vectorstore_code_parser config"
+  echo "Creating $MCPPER_JSON with code_search config"
   echo "$NEW_ENTRY" > "$MCPPER_JSON"
 else
   echo "$NEW_ENTRY" > "$MCPPER_JSON.new"
@@ -94,7 +91,7 @@ else
   .[0] | .mcpServers = $merged | reduce ($merged | keys)[] as $k (.; del(.[$k]))
 ' "$MCPPER_JSON" "$MCPPER_JSON.new" > "$MCPPER_JSON.tmp" && mv "$MCPPER_JSON.tmp" "$MCPPER_JSON"
   rm -f "$MCPPER_JSON.new"
-  echo "Appended vectorstore_code_parser to $MCPPER_JSON"
+  echo "Appended code_search to $MCPPER_JSON"
 fi
 
 echo "Done."
