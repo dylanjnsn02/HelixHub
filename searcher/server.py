@@ -375,16 +375,17 @@ def _result_to_dict(r: SearchResult) -> dict:
     }
 
 
-def run_mcp(path: str) -> None:
+def run_mcp(path: Optional[str] = None) -> None:
     try:
         from fastmcp import FastMCP
     except ImportError:
         print("fastmcp is not installed. Run: pip install fastmcp", file=sys.stderr)
         sys.exit(1)
 
-    mcp = FastMCP("docindex")
-    # Pre-warm the cache for the provided path
-    _get_index(path)
+    mcp = FastMCP("searcher")
+    # Optionally pre-warm an initial index for faster first query.
+    if path:
+        _get_index(path)
 
     @mcp.tool
     def search(path: str, query: str, top_k: int = 5, context_lines: int = 20) -> list[dict]:
@@ -427,7 +428,7 @@ def run_mcp(path: str) -> None:
             "content": content,
         }
 
-    mcp.run()
+    mcp.run(transport="stdio")
 
 
 # ---------- CLI ----------
@@ -443,6 +444,11 @@ def _print_results(results: list[SearchResult]) -> None:
 
 
 def main(argv: list[str]) -> int:
+    # MCP launcher mode (used by mcporter): `python server.py`
+    if len(argv) == 1:
+        run_mcp()
+        return 0
+
     if len(argv) < 3:
         print('Usage: python docindex.py <path> "<query>" [--top-k N] [--context-lines N]', file=sys.stderr)
         print("       python docindex.py <path> --mcp", file=sys.stderr)
