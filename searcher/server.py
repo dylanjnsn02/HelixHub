@@ -357,7 +357,7 @@ _INDEX_CACHE: dict[str, DocumentIndex] = {}
 
 
 def _get_index(path: str) -> DocumentIndex:
-    key = str(Path(path).resolve())
+    key = path if _is_url(path) else str(Path(path).resolve())
     if key not in _INDEX_CACHE:
         _INDEX_CACHE[key] = DocumentIndex.from_path(key)
     return _INDEX_CACHE[key]
