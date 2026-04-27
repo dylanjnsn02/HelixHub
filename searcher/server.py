@@ -22,7 +22,7 @@ DEMOTE_PATH_RE = re.compile(r"changelog|examples|legacy|compat|deprecated|archiv
 KEYWORD_QUERY_RE = re.compile(r"[_.]|[a-z][A-Z]|[A-Z]{2,}")
 TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
 HEADING_RE = re.compile(r"^\s*#{1,6}\s+\S")
-MODEL_NAME = "minishlab/potion-retrieval-32M"
+MODEL_NAME = "sentence-transformers/static-retrieval-mrl-en-v1"
 
 
 @dataclass
@@ -172,8 +172,9 @@ class DocumentIndex:
 
     def _load_model(self):
         if self._model is None:
-            from model2vec import StaticModel
-            self._model = StaticModel.from_pretrained(MODEL_NAME)
+            from sentence_transformers import SentenceTransformer
+
+            self._model = SentenceTransformer(MODEL_NAME, device="cpu")
         return self._model
 
     @classmethod

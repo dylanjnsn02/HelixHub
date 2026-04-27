@@ -2,7 +2,7 @@ fastmcp
 numpy
 chonkie
 bm25s
-model2vec
+sentence-transformers
 requests
 beautifulsoup4
 pymupdf
