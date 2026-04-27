@@ -6,3 +6,6 @@ model2vec
 requests
 beautifulsoup4
 pymupdf
+python-docx
+openpyxl
+python-pptx

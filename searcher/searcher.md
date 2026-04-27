@@ -44,3 +44,4 @@ Use this skill when users need high-recall document discovery across repos, docs
 - `get_content` returns empty content for non-indexed targets.
 - URL indexing requires optional runtime dependencies for HTTP and HTML parsing.
 - PDF indexing requires a compatible PyMuPDF package.
+- Office document indexing (`.docx`, `.xlsx`, `.pptx`) requires `python-docx`, `openpyxl`, and `python-pptx` respectively. Files of an unsupported type or with a missing dep are silently skipped.

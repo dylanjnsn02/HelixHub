@@ -16,6 +16,7 @@ SUPPORTED_EXTS = {
     ".md", ".txt", ".rst", ".mdx", ".pdf",
     ".py", ".json", ".yaml", ".yml", ".toml",
     ".html", ".htm", ".csv", ".log", ".ini", ".cfg",
+    ".docx", ".xlsx", ".pptx",
 }
 DEMOTE_PATH_RE = re.compile(r"changelog|examples|legacy|compat|deprecated|archive", re.I)
 KEYWORD_QUERY_RE = re.compile(r"[_.]|[a-z][A-Z]|[A-Z]{2,}")
@@ -59,7 +60,8 @@ def _find_heading(text: str, start_line: int) -> Optional[str]:
 
 def _read_file(path: Path) -> Optional[str]:
     try:
-        if path.suffix.lower() == ".pdf":
+        suffix = path.suffix.lower()
+        if suffix == ".pdf":
             try:
                 import pymupdf  # type: ignore
             except ImportError:
@@ -69,6 +71,59 @@ def _read_file(path: Path) -> Optional[str]:
                     return None
             with pymupdf.open(str(path)) as doc:
                 return "\n".join(page.get_text("text") for page in doc)
+        if suffix == ".docx":
+            try:
+                import docx  # python-docx
+            except ImportError:
+                return None
+            d = docx.Document(str(path))
+            parts = [p.text for p in d.paragraphs if p.text.strip()]
+            for table in d.tables:
+                for row in table.rows:
+                    cells = [c.text.strip() for c in row.cells if c.text.strip()]
+                    if cells:
+                        parts.append("\t".join(cells))
+            return "\n".join(parts)
+        if suffix == ".xlsx":
+            try:
+                from openpyxl import load_workbook
+            except ImportError:
+                return None
+            wb = load_workbook(str(path), data_only=True, read_only=True)
+            parts: list[str] = []
+            for ws in wb.worksheets:
+                parts.append(f"# Sheet: {ws.title}")
+                for row in ws.iter_rows(values_only=True):
+                    cells = [str(v) for v in row if v not in (None, "")]
+                    if cells:
+                        parts.append("\t".join(cells))
+            wb.close()
+            return "\n".join(parts)
+        if suffix == ".pptx":
+            try:
+                from pptx import Presentation
+            except ImportError:
+                return None
+            prs = Presentation(str(path))
+            parts = []
+            for i, slide in enumerate(prs.slides, 1):
+                parts.append(f"# Slide {i}")
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        for para in shape.text_frame.paragraphs:
+                            text = "".join(run.text for run in para.runs).strip()
+                            if text:
+                                parts.append(text)
+                    if shape.has_table:
+                        for row in shape.table.rows:
+                            cells = [c.text.strip() for c in row.cells if c.text.strip()]
+                            if cells:
+                                parts.append("\t".join(cells))
+                if slide.has_notes_slide:
+                    notes = slide.notes_slide.notes_text_frame.text.strip()
+                    if notes:
+                        parts.append(f"Notes: {notes}")
+            return "\n".join(parts)
         return path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
         return None
